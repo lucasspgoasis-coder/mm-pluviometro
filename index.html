@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fazenda Oásis - Relatório Técnico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        
+        body {
+            background-color: #f1f5f9;
+            font-family: 'Inter', sans-serif;
+        }
+        .report-font { font-family: 'Inter', sans-serif; }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Estilos do Relatório Exportado */
+        #reportTemplate {
+            width: 800px;
+            background: white;
+            padding: 40px;
+            display: none;
+        }
+
+        .photo-slot {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            border-radius: 24px;
+            background: #f8fafc;
+        }
+
+        .blue-box {
+            background-color: #1e3a8a;
+            color: white;
+            border-radius: 40px;
+            padding: 30px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .measure-badge {
+            background: #f8fafc;
+            border-radius: 30px;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .intensity-option {
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .intensity-option.selected {
+            border-color: #1e3a8a;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-2xl mx-auto pb-20">
+        <!-- Cabeçalho UI -->
+        <header class="mb-8 text-center flex flex-col items-center">
+            <img src="https://i.imgur.com/wEozr34.png" alt="Logo" class="w-20 h-20 object-contain mb-3">
+            <h1 class="text-3xl font-black text-slate-800 uppercase tracking-tight">Fazenda Oásis</h1>
+            <p class="text-sm font-bold text-blue-600 tracking-[0.2em] uppercase">Registro Pluviométrico</p>
+        </header>
+
+        <!-- Formulário de Entrada -->
+        <div class="card p-6 mb-8 border border-slate-100">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
+                    <input type="date" id="dateInput" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Milímetros (mm)</label>
+                    <input type="number" id="mmInput" step="0.1" placeholder="0" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none font-bold text-lg">
+                </div>
+            </div>
+
+            <div class="space-y-4 mb-6">
+                <label class="block text-xs font-bold text-slate-400 uppercase -mb-2">Intensidade da Chuva</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <div onclick="selectIntensity('leve')" id="opt-leve" class="intensity-option bg-slate-50 p-3 rounded-xl text-center">
+                        <span class="text-2xl block">🌦️</span>
+                        <span class="text-[10px] font-bold uppercase">Leve</span>
+                    </div>
+                    <div onclick="selectIntensity('moderada')" id="opt-moderada" class="intensity-option bg-slate-50 p-3 rounded-xl text-center selected">
+                        <span class="text-2xl block">🌧️</span>
+                        <span class="text-[10px] font-bold uppercase">Moderada</span>
+                    </div>
+                    <div onclick="selectIntensity('forte')" id="opt-forte" class="intensity-option bg-slate-50 p-3 rounded-xl text-center">
+                        <span class="text-2xl block">⛈️</span>
+                        <span class="text-[10px] font-bold uppercase">Forte</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1 text-blue-600">1. Foto da Leitura</label>
+                    <input type="file" id="photoLeitura" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1 text-slate-600">2. Foto do Esvaziamento</label>
+                    <input type="file" id="photoVazio" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-slate-100 file:text-slate-700">
+                </div>
+            </div>
+
+            <button onclick="addEntry()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-wider">
+                Gerar Relatório Técnico
+            </button>
+        </div>
+
+        <!-- Lista de Histórico -->
+        <div id="historyList" class="space-y-4"></div>
+    </div>
+
+    <!-- TEMPLATE DE EXPORTAÇÃO -->
+    <div id="reportTemplate" class="report-font">
+        <div class="flex justify-between items-center mb-12 border-b pb-8">
+            <div class="flex items-center gap-4">
+                <img src="https://i.imgur.com/wEozr34.png" class="w-16 h-16 object-contain">
+                <div>
+                    <h2 class="text-3xl font-black text-blue-900 tracking-tighter uppercase">Fazenda Oásis</h2>
+                    <p class="text-xs font-bold text-slate-400 tracking-[0.3em] uppercase">Registro Pluviométrico</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Relatório Técnico</p>
+                <p id="repDate" class="text-2xl font-black text-blue-900">00/00/0000</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-12 gap-8 mb-12">
+            <div class="col-span-4">
+                <div class="measure-badge flex flex-col items-center justify-center h-full">
+                    <div class="w-20 h-40 border-2 border-slate-200 rounded relative mb-8 flex flex-col justify-end p-1">
+                        <div class="absolute inset-0 flex flex-col justify-between p-2 text-[10px] font-bold text-slate-300">
+                            <span>100</span><span>80</span><span>60</span><span>40</span><span>20</span><span>0</span>
+                        </div>
+                        <div id="repLevel" class="w-full bg-blue-600 rounded-sm"></div>
+                        <div class="absolute -right-4 bottom-[10%] text-red-500" id="repArrow">◀</div>
+                    </div>
+                    <p id="repMM" class="text-7xl font-black text-blue-900 leading-none">00</p>
+                    <p class="text-blue-500 font-bold tracking-[0.2em] uppercase text-sm mt-2">Milímetros</p>
+                </div>
+            </div>
+
+            <div class="col-span-4 text-center">
+                <p class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">1. Evidência da Leitura</p>
+                <img id="repImg1" src="" class="photo-slot">
+            </div>
+            <div class="col-span-4 text-center">
+                <p class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">2. Prova Esvaziamento</p>
+                <img id="repImg2" src="" class="photo-slot">
+            </div>
+        </div>
+
+        <div class="blue-box mb-12">
+            <div>
+                <p class="text-[10px] font-black opacity-60 uppercase mb-1 tracking-widest">Classificação da Intensidade</p>
+                <p id="repIntensityLabel" class="text-2xl font-black uppercase">Chuva Moderada</p>
+            </div>
+            <div id="repIntensityIcon" class="text-5xl"></div>
+        </div>
+
+        <div class="text-center">
+            <p class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.5em]">Fazenda Oásis • Registro Pluviométrico</p>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full opacity-0 transition-all pointer-events-none z-50"></div>
+
+    <script>
+        let dataEntries = JSON.parse(localStorage.getItem('oasis_reports') || '[]');
+        let selectedIntensity = 'moderada';
+
+        const intensityData = {
+            leve: { label: 'Chuva Leve', icon: '🌦️' },
+            moderada: { label: 'Chuva Moderada', icon: '🌧️' },
+            forte: { label: 'Chuva Forte', icon: '⛈️' }
+        };
+
+        window.onload = () => {
+            document.getElementById('dateInput').valueAsDate = new Date();
+            renderEntries();
+        };
+
+        function selectIntensity(type) {
+            selectedIntensity = type;
+            document.querySelectorAll('.intensity-option').forEach(opt => opt.classList.remove('selected'));
+            document.getElementById(`opt-${type}`).classList.add('selected');
+        }
+
+        const toBase64 = file => new Promise((resolve) => {
+            if (!file) return resolve(null);
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+        });
+
+        async function addEntry() {
+            const date = document.getElementById('dateInput').value;
+            const mm = document.getElementById('mmInput').value;
+            const file1 = document.getElementById('photoLeitura').files[0];
+            const file2 = document.getElementById('photoVazio').files[0];
+
+            if (!date || !mm) return showToast("Preencha a data e os milímetros!");
+
+            showToast("A processar imagens...");
+            const img1 = await toBase64(file1);
+            const img2 = await toBase64(file2);
+
+            const newReport = {
+                id: Date.now(),
+                date,
+                mm,
+                intensity: selectedIntensity,
+                img1,
+                img2
+            };
+
+            dataEntries.unshift(newReport);
+            localStorage.setItem('oasis_reports', JSON.stringify(dataEntries));
+            
+            renderEntries();
+            downloadReport(newReport);
+            
+            document.getElementById('mmInput').value = '';
+            document.getElementById('photoLeitura').value = '';
+            document.getElementById('photoVazio').value = '';
+        }
+
+        function renderEntries() {
+            const container = document.getElementById('historyList');
+            container.innerHTML = dataEntries.map(e => `
+                <div class="card p-4 flex items-center justify-between border border-slate-100">
+                    <div class="flex items-center gap-4">
+                        <div class="bg-blue-50 text-blue-700 font-black p-3 rounded-xl w-16 text-center">
+                            ${e.mm}<span class="text-[10px] block">MM</span>
+                        </div>
+                        <div>
+                            <p class="font-bold text-slate-800">${e.date.split('-').reverse().join('/')}</p>
+                            <p class="text-xs text-slate-400 uppercase font-bold">${intensityData[e.intensity || 'moderada'].label}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick='downloadReport(${JSON.stringify(e)})' class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        </button>
+                        <button onclick="deleteEntry(${e.id})" class="p-2 text-red-300 hover:text-red-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function downloadReport(data) {
+            const template = document.getElementById('reportTemplate');
+            const intensity = intensityData[data.intensity || 'moderada'];
+            
+            document.getElementById('repDate').innerText = data.date.split('-').reverse().join('/');
+            document.getElementById('repMM').innerText = data.mm;
+            document.getElementById('repLevel').style.height = Math.min(data.mm, 100) + '%';
+            document.getElementById('repArrow').style.bottom = Math.min(data.mm, 100) + '%';
+            document.getElementById('repImg1').src = data.img1 || '';
+            document.getElementById('repImg2').src = data.img2 || '';
+            document.getElementById('repIntensityLabel').innerText = intensity.label;
+            document.getElementById('repIntensityIcon').innerText = intensity.icon;
+
+            template.style.display = 'block';
+            showToast("A gerar JPEG de alta qualidade...");
+
+            setTimeout(() => {
+                html2canvas(template, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `OASIS_${data.date}_${data.mm}mm.jpg`;
+                    link.href = canvas.toDataURL("image/jpeg", 0.9);
+                    link.click();
+                    template.style.display = 'none';
+                    showToast("Relatório pronto!");
+                });
+            }, 500);
+        }
+
+        function deleteEntry(id) {
+            if (!confirm("Remover este registo?")) return;
+            dataEntries = dataEntries.filter(e => e.id !== id);
+            localStorage.setItem('oasis_reports', JSON.stringify(dataEntries));
+            renderEntries();
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.opacity = '1';
+            setTimeout(() => t.style.opacity = '0', 3000);
+        }
+    </script>
+</body>
+</html>
