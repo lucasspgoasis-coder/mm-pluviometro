@@ -106,6 +106,19 @@
             outline: none !important;
             box-shadow: none !important;
         }
+
+        /* Modal de Confirmação */
+        #confirmModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -118,7 +131,7 @@
         </header>
 
         <!-- Formulário de Entrada -->
-        <div class="card p-6 mb-8 border border-slate-100">
+        <div class="card p-6 mb-8 border border-slate-100" id="mainForm">
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
@@ -150,23 +163,44 @@
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1 text-blue-600">1. Foto da Leitura</label>
                     <input type="file" id="photoLeitura" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700">
+                    <div id="previewLeitura" class="hidden mt-2 text-[10px] text-blue-400 italic">Imagem existente mantida</div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1 text-slate-600">2. Foto do Esvaziamento</label>
                     <input type="file" id="photoVazio" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-slate-100 file:text-slate-700">
+                    <div id="previewVazio" class="hidden mt-2 text-[10px] text-slate-400 italic">Imagem existente mantida</div>
                 </div>
             </div>
 
-            <button onclick="addEntry()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-wider">
+            <button id="submitBtn" onclick="processEntry()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-wider">
                 Gerar Relatório Técnico
+            </button>
+            <button id="cancelEditBtn" onclick="resetForm()" class="hidden w-full mt-2 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold py-2 rounded-xl transition-all uppercase text-xs tracking-widest">
+                Cancelar Edição
             </button>
         </div>
 
         <!-- Lista de Histórico -->
+        <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 px-2">Histórico Recente</h2>
         <div id="historyList" class="space-y-4"></div>
     </div>
 
-    <!-- TEMPLATE DE EXPORTAÇÃO -->
+    <!-- Modal de Confirmação Personalizado -->
+    <div id="confirmModal">
+        <div class="bg-white p-8 rounded-3xl max-w-xs w-full text-center shadow-2xl scale-95 animate-in fade-in zoom-in duration-300">
+            <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </div>
+            <h3 class="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">Excluir Registo?</h3>
+            <p class="text-slate-500 text-sm mb-6">Esta ação não pode ser desfeita.</p>
+            <div class="flex gap-3">
+                <button onclick="closeModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-xl transition-colors uppercase text-xs tracking-widest">Não</button>
+                <button id="confirmDeleteBtn" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-red-200 uppercase text-xs tracking-widest">Sim</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEMPLATE DE EXPORTAÇÃO (INVISÍVEL) -->
     <div id="reportTemplate" class="report-font">
         <div class="flex justify-between items-center mb-12 border-b pb-8">
             <div class="flex items-center gap-4">
@@ -185,7 +219,6 @@
         <div class="grid grid-cols-12 gap-8 mb-12">
             <div class="col-span-4">
                 <div class="measure-badge h-full">
-                    <!-- Medidor de nível -->
                     <div class="w-20 h-40 border-2 border-slate-100 rounded-md relative mb-10 flex flex-col justify-end p-1 shadow-inner bg-slate-50">
                         <div class="absolute inset-0 flex flex-col justify-between py-2 px-1 text-[9px] font-bold text-slate-400">
                             <span>100</span><span>80</span><span>60</span><span>40</span><span>20</span><span>0</span>
@@ -194,7 +227,6 @@
                         <div class="absolute -right-3 bottom-0 text-red-500 text-xs transition-all duration-500" id="repArrow">◀</div>
                     </div>
                     
-                    <!-- Bloco Numérico com Texto Acima -->
                     <div class="flex flex-col items-center">
                         <span class="registered-label">MM Registrado</span>
                         <div class="number-elegant text-[115px]">
@@ -232,6 +264,8 @@
     <script>
         let dataEntries = JSON.parse(localStorage.getItem('oasis_reports') || '[]');
         let selectedIntensity = 'moderada';
+        let idToDelete = null;
+        let editingId = null;
 
         const intensityData = {
             leve: { label: 'Chuva Leve', icon: '🌦️' },
@@ -257,7 +291,7 @@
             reader.onload = () => resolve(reader.result);
         });
 
-        async function addEntry() {
+        async function processEntry() {
             const date = document.getElementById('dateInput').value;
             const mm = document.getElementById('mmInput').value;
             const file1 = document.getElementById('photoLeitura').files[0];
@@ -265,53 +299,136 @@
 
             if (!date || !mm) return showToast("Preencha a data e os milímetros!");
 
-            showToast("A processar imagens...");
-            const img1 = await toBase64(file1);
-            const img2 = await toBase64(file2);
+            showToast(editingId ? "Atualizando registro..." : "A processar imagens...");
+            
+            let img1 = await toBase64(file1);
+            let img2 = await toBase64(file2);
 
-            const newReport = {
-                id: Date.now(),
-                date,
-                mm,
-                intensity: selectedIntensity,
-                img1,
-                img2
-            };
+            if (editingId) {
+                // Se estiver editando, se não enviou nova foto, mantém a antiga
+                const oldEntry = dataEntries.find(e => e.id === editingId);
+                if (!img1) img1 = oldEntry.img1;
+                if (!img2) img2 = oldEntry.img2;
 
-            dataEntries.unshift(newReport);
+                const index = dataEntries.findIndex(e => e.id === editingId);
+                dataEntries[index] = { ...oldEntry, date, mm, intensity: selectedIntensity, img1, img2 };
+                showToast("Registo atualizado!");
+            } else {
+                const newReport = {
+                    id: Date.now().toString(),
+                    date,
+                    mm,
+                    intensity: selectedIntensity,
+                    img1,
+                    img2
+                };
+                dataEntries.unshift(newReport);
+                downloadReport(newReport);
+            }
+
             localStorage.setItem('oasis_reports', JSON.stringify(dataEntries));
-            
+            resetForm();
             renderEntries();
-            downloadReport(newReport);
+        }
+
+        function handleEdit(id) {
+            const entry = dataEntries.find(e => e.id === id);
+            if (!entry) return;
+
+            editingId = id;
+            document.getElementById('dateInput').value = entry.date;
+            document.getElementById('mmInput').value = entry.mm;
+            selectIntensity(entry.intensity);
+
+            // Interface de edição
+            document.getElementById('submitBtn').innerText = "Atualizar Registro";
+            document.getElementById('submitBtn').classList.replace('bg-blue-700', 'bg-amber-500');
+            document.getElementById('submitBtn').classList.replace('hover:bg-blue-800', 'hover:bg-amber-600');
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
             
+            // Mostrar avisos de fotos
+            if (entry.img1) document.getElementById('previewLeitura').classList.remove('hidden');
+            if (entry.img2) document.getElementById('previewVazio').classList.remove('hidden');
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            editingId = null;
             document.getElementById('mmInput').value = '';
+            document.getElementById('dateInput').valueAsDate = new Date();
             document.getElementById('photoLeitura').value = '';
             document.getElementById('photoVazio').value = '';
+            selectIntensity('moderada');
+
+            // Reset UI
+            document.getElementById('submitBtn').innerText = "Gerar Relatório Técnico";
+            document.getElementById('submitBtn').classList.replace('bg-amber-500', 'bg-blue-700');
+            document.getElementById('submitBtn').classList.replace('hover:bg-amber-600', 'hover:bg-blue-800');
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.getElementById('previewLeitura').classList.add('hidden');
+            document.getElementById('previewVazio').classList.add('hidden');
         }
 
         function renderEntries() {
             const container = document.getElementById('historyList');
-            container.innerHTML = dataEntries.map(e => `
-                <div class="card p-4 flex items-center justify-between border border-slate-100">
+            if (dataEntries.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-400 py-10 text-sm">Nenhum registo encontrado.</p>`;
+                return;
+            }
+
+            container.innerHTML = dataEntries.map(e => {
+                const intensity = intensityData[e.intensity || 'moderada'];
+                return `
+                <div class="card p-4 flex items-center justify-between border border-slate-100 hover:border-blue-100 transition-colors">
                     <div class="flex items-center gap-4">
                         <div class="bg-blue-50 text-blue-700 font-black p-3 rounded-xl w-16 text-center">
                             ${e.mm}<span class="text-[10px] block">MM</span>
                         </div>
                         <div>
                             <p class="font-bold text-slate-800">${e.date.split('-').reverse().join('/')}</p>
-                            <p class="text-xs text-slate-400 uppercase font-bold">${intensityData[e.intensity || 'moderada'].label}</p>
+                            <p class="text-xs text-slate-400 uppercase font-bold">${intensity.label}</p>
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick='downloadReport(${JSON.stringify(e)})' class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <div class="flex gap-1">
+                        <button onclick="handleDownload('${e.id}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Download">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                         </button>
-                        <button onclick="deleteEntry(${e.id})" class="p-2 text-red-300 hover:text-red-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        <button onclick="handleEdit('${e.id}')" class="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors" title="Editar">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                        </button>
+                        <button onclick="askToDelete('${e.id}')" class="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Apagar">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
+        }
+
+        function askToDelete(id) {
+            idToDelete = id;
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            idToDelete = null;
+        }
+
+        document.getElementById('confirmDeleteBtn').onclick = () => {
+            if (idToDelete) {
+                if (editingId === idToDelete) resetForm();
+                dataEntries = dataEntries.filter(e => e.id !== idToDelete);
+                localStorage.setItem('oasis_reports', JSON.stringify(dataEntries));
+                renderEntries();
+                closeModal();
+                showToast("Registo apagado.");
+            }
+        };
+
+        function handleDownload(id) {
+            const entry = dataEntries.find(e => e.id === id);
+            if (entry) downloadReport(entry);
         }
 
         async function downloadReport(data) {
@@ -331,7 +448,7 @@
             document.getElementById('repIntensityIcon').innerText = intensity.icon;
 
             template.style.display = 'block';
-            showToast("A gerar JPEG de alta qualidade...");
+            showToast("A gerar JPEG...");
 
             setTimeout(() => {
                 html2canvas(template, {
@@ -344,16 +461,9 @@
                     link.href = canvas.toDataURL("image/jpeg", 0.9);
                     link.click();
                     template.style.display = 'none';
-                    showToast("Relatório pronto!");
+                    showToast("Relatório descarregado!");
                 });
-            }, 600);
-        }
-
-        function deleteEntry(id) {
-            if (!confirm("Remover este registo?")) return;
-            dataEntries = dataEntries.filter(e => e.id !== id);
-            localStorage.setItem('oasis_reports', JSON.stringify(dataEntries));
-            renderEntries();
+            }, 500);
         }
 
         function showToast(msg) {
