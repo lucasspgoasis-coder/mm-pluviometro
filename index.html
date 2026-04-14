@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Bebas+Neue&display=swap');
         
         body {
             background-color: #f1f5f9;
@@ -50,8 +50,38 @@
         .measure-badge {
             background: #f8fafc;
             border-radius: 30px;
-            padding: 60px 40px;
+            padding: 40px 20px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .number-elegant {
+            font-family: 'Bebas Neue', cursive;
+            line-height: 0.8;
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            color: #1e3a8a;
+        }
+
+        .unit-mm {
+            font-size: 0.35em; 
+            margin-left: 4px;
+            opacity: 0.6;
+            font-weight: 400;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .registered-label {
+            font-size: 10px;
+            font-weight: 900;
+            color: #94a3b8;
+            letter-spacing: 0.15em;
+            margin-bottom: 4px;
+            text-transform: uppercase;
         }
 
         .intensity-option {
@@ -63,13 +93,26 @@
             border-color: #1e3a8a;
             background-color: #eff6ff;
         }
+
+        /* Gradiente no nível da água */
+        #repLevel {
+            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+            transition: height 0.5s ease-out;
+            border-radius: 2px;
+        }
+        
+        .logo-img {
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
     <div class="max-w-2xl mx-auto pb-20">
         <!-- Cabeçalho UI -->
         <header class="mb-8 text-center flex flex-col items-center">
-            <img src="https://i.imgur.com/wEozr34.png" alt="Logo" class="w-20 h-20 object-contain mb-3">
+            <img src="https://i.imgur.com/wEozr34.png" alt="Logo Fazenda Oásis" class="w-24 h-24 object-contain mb-3 logo-img">
             <h1 class="text-3xl font-black text-slate-800 uppercase tracking-tight">Fazenda Oásis</h1>
             <p class="text-sm font-bold text-blue-600 tracking-[0.2em] uppercase">Registro Pluviométrico</p>
         </header>
@@ -127,7 +170,7 @@
     <div id="reportTemplate" class="report-font">
         <div class="flex justify-between items-center mb-12 border-b pb-8">
             <div class="flex items-center gap-4">
-                <img src="https://i.imgur.com/wEozr34.png" class="w-16 h-16 object-contain">
+                <img src="https://i.imgur.com/wEozr34.png" class="w-20 h-20 object-contain logo-img">
                 <div>
                     <h2 class="text-3xl font-black text-blue-900 tracking-tighter uppercase">Fazenda Oásis</h2>
                     <p class="text-xs font-bold text-slate-400 tracking-[0.3em] uppercase">Registro Pluviométrico</p>
@@ -141,16 +184,23 @@
 
         <div class="grid grid-cols-12 gap-8 mb-12">
             <div class="col-span-4">
-                <div class="measure-badge flex flex-col items-center justify-center h-full">
-                    <div class="w-20 h-40 border-2 border-slate-200 rounded relative mb-8 flex flex-col justify-end p-1">
-                        <div class="absolute inset-0 flex flex-col justify-between p-2 text-[10px] font-bold text-slate-300">
+                <div class="measure-badge h-full">
+                    <!-- Medidor de nível -->
+                    <div class="w-20 h-40 border-2 border-slate-100 rounded-md relative mb-10 flex flex-col justify-end p-1 shadow-inner bg-slate-50">
+                        <div class="absolute inset-0 flex flex-col justify-between py-2 px-1 text-[9px] font-bold text-slate-400">
                             <span>100</span><span>80</span><span>60</span><span>40</span><span>20</span><span>0</span>
                         </div>
-                        <div id="repLevel" class="w-full bg-blue-600 rounded-sm"></div>
-                        <div class="absolute -right-4 bottom-[10%] text-red-500" id="repArrow">◀</div>
+                        <div id="repLevel" class="w-full"></div>
+                        <div class="absolute -right-3 bottom-0 text-red-500 text-xs transition-all duration-500" id="repArrow">◀</div>
                     </div>
-                    <p id="repMM" class="text-7xl font-black text-blue-900 leading-none">00</p>
-                    <p class="text-blue-500 font-bold tracking-[0.2em] uppercase text-sm mt-2">Milímetros</p>
+                    
+                    <!-- Bloco Numérico com Texto Acima -->
+                    <div class="flex flex-col items-center">
+                        <span class="registered-label">MM Registrado</span>
+                        <div class="number-elegant text-[115px]">
+                            <span id="repMM">00</span><span class="unit-mm">mm</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -270,8 +320,11 @@
             
             document.getElementById('repDate').innerText = data.date.split('-').reverse().join('/');
             document.getElementById('repMM').innerText = data.mm;
-            document.getElementById('repLevel').style.height = Math.min(data.mm, 100) + '%';
-            document.getElementById('repArrow').style.bottom = Math.min(data.mm, 100) + '%';
+            
+            const levelPercentage = Math.min(data.mm, 100) + '%';
+            document.getElementById('repLevel').style.height = levelPercentage;
+            document.getElementById('repArrow').style.bottom = `calc(${levelPercentage} - 6px)`;
+            
             document.getElementById('repImg1').src = data.img1 || '';
             document.getElementById('repImg2').src = data.img2 || '';
             document.getElementById('repIntensityLabel').innerText = intensity.label;
@@ -293,7 +346,7 @@
                     template.style.display = 'none';
                     showToast("Relatório pronto!");
                 });
-            }, 500);
+            }, 600);
         }
 
         function deleteEntry(id) {
